@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "cors": "^2.8.4",
     "errorhandler-express": "^1.0.8",
     "express": "^4.16.2",
     "gm": "^1.23.0",
