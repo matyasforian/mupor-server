@@ -32,15 +32,62 @@ app.get('/test', function(req, res) {
 
 app.post('/add', upload.single('image'), function (req, res, next) {
 	try {
-		start = new Date().getTime();
+		var start = new Date();
 		console.log('add image', req.file, req.body);
 		processImage(req.file.path, req.file.originalname, req.body.artist).then(function(result) {
-			res.status(200).send({test: 'profile'});
-			console.log('SUCCESS', new Date().getTime() - start);
+            deleteFile(req.file.path);
+			console.log('Image uploaded: ', req.body.artist, req.file.originalname, new Date() - start);
+            res.status(200).send({result: 'success'});
 		}, function(reason) {
+    	    console.error('Error found while process', req.body.artist, req.file.originalname, error);
 			next(reason);
 		});
 	} catch (error) {
+	    console.error('Error found while image upload', req.body.artist, req.file.originalname, error);
+		next(error);
+	}
+});
+
+app.post('/addFile', upload.single('file'), function (req, res, next) {
+	try {
+		var start = new Date();
+		var artist = req.body.artist;
+		var file = req.file.originalname;
+		console.log('add file', req.file, req.body);
+		var dir = checkCreateDirs(artist);
+        fs.createReadStream(req.file.path).pipe(fs.createWriteStream('images/' + artist + '/raw/' + file));
+        deleteFile(req.file.path);
+        console.log('File uploaded', req.body.artist, req.file.originalname, new Date() - start);
+        res.status(200).send({result: 'success'});
+	} catch (error) {
+    	console.error('Error found while file upload', req.body.artist, req.file.originalname, error);
+		next(error);
+	}
+});
+
+app.delete('/delete/:artist/:image', function(req, res) {
+	try {
+	    var deleted = 0;
+		resolutions.forEach(function(val) {
+			var path = 'images/' + req.params.artist + '/' + val.name + '/' + req.params.image;
+			deleteFile(path);
+			deleted++;
+		});
+        console.log('Images deleted', req.params.artist, req.params.image, deleted);
+        res.status(200).send({result: 'success'});
+	} catch (error) {
+    	console.error('Error found while delete images', req.params.artist, req.params.image, error);
+		next(error);
+	}
+});
+
+app.delete('/deleteFile/:artist/:file', function(req, res) {
+	try {
+        deleteFile('images/' + req.params.artist + '/raw/' + req.params.file);
+        console.log('File deleted', req.params.artist, req.params.file);
+        res.status(200).send({result: 'success'});
+	} catch (error) {
+    	console.error('Error found while delete file', req.params.artist, req.params.file, error);
 		next(error);
 	}
 });
@@ -64,14 +111,24 @@ app.listen(3000, function () {
   console.log('Example app listening on port 3000!')
 });
 
+function deleteFile(filePath) {
+   fs.unlink(filePath,function(err){
+        if(err) {
+            return console.error('Error found while delete file ', filePath, err);
+        }
+        console.log('File deleted successfully', filePath);
+   });
+}
+
 function checkCreateDirs(artist) {
-	let dir = 'images/' + artist;
+	var dir = 'images/' + artist;
 	if (makeDir(dir)) {
 		resolutions.forEach(function(val) {
-			let dir = 'images/' + artist + '/' + val.name;
+			var dir = 'images/' + artist + '/' + val.name;
 			makeDir(dir);
 		});
 	}
+	return dir;
 }
 
 function makeDir(dir) {
@@ -99,9 +156,9 @@ function processImage(filePath, file, artist) {
 
 				// copy raw image to assets folder
 				fs.createReadStream(filePath).pipe(fs.createWriteStream('images/' + artist + '/raw/' + file));
-				let promises = [];
-				for (let i=0; i<resolutions.length-2; i++) {
-					let r = resolutions[i];
+				var promises = [];
+				for (var i=0; i<resolutions.length-1; i++) {
+					var r = resolutions[i];
 					promises.push(createPreviewImage(filePath, file, r.height, r.name, artist));
 				}
 				Promise.all(promises).then(function(val) {
@@ -120,12 +177,11 @@ function createPreviewImage(filePath, file, rheight, rname, artist) {
 			.quality(95)
 			.autoOrient()
 			.write('images/' + artist + '/' + rname + '/' + file, function (err) {
-				if (err) 
-					reject(err)
-				else 
+				if (err) {
+					reject(err);
+				} else {
 					resolve(true);
+				}
 			});
 	});
-    // create various preview images
-
 }
