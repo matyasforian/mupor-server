@@ -9,7 +9,20 @@ var upload         = multer({ dest: 'uploads/' });
 
 var app = express();
 var router = express.Router();
-app.use(cors());
+
+var whitelist = ['http://localhost:4200', 'http://mupor.hopto.org:3000'];
+var corsOptions = {
+	origin: function (origin, callback) {
+		if (whitelist.indexOf(origin) !== -1) {
+			callback(null, true)
+		} else {
+			callback(new Error('Not allowed by CORS'))
+		}
+	},
+	credentials: true
+};
+
+app.use(cors(corsOptions));
 var start = 0;
 
 var resolutions = [
@@ -27,7 +40,7 @@ makeDir('uploads');
 
 app.get('/test', function(req, res) {
 	console.log('test called');
-	res.json({ message: 'hooray! welcome to our api!' });   
+	res.json({ message: 'hooray! welcome to our api!' });
 });
 
 app.post('/add', upload.single('image'), function (req, res, next) {
@@ -48,10 +61,10 @@ app.post('/add', upload.single('image'), function (req, res, next) {
 	}
 });
 
-app.post('/addFile', upload.single('file'), function (req, res, next) {
+app.post('/:artist/addFile', upload.single('file'), function (req, res, next) {
 	try {
 		var start = new Date();
-		var artist = req.body.artist;
+		var artist = req.params.artist;
 		var file = req.file.originalname;
 		console.log('add file', req.file, req.body);
 		var dir = checkCreateDirs(artist);
@@ -108,7 +121,7 @@ app.use(function(req, res, next) {
 });
 
 app.listen(3000, function () {
-  console.log('Example app listening on port 3000!')
+  console.log('MUPOR server listening on port 3000!')
 });
 
 function deleteFile(filePath) {
@@ -136,7 +149,7 @@ function makeDir(dir) {
 		fs.mkdirSync(dir, 0744);
 		return true;
 	} else {
-		return false; 
+		return false;
 	}
 }
 
