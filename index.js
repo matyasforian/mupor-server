@@ -10,7 +10,7 @@ var upload         = multer({ dest: 'uploads/' });
 var app = express();
 var router = express.Router();
 
-var whitelist = ['http://localhost:4200', 'http://mupor.hopto.org:3000'];
+var whitelist = ['http://localhost:4200', 'http://mupor.hopto.org:3000', 'http://mupor.hopto.org:8888'];
 var corsOptions = {
 	origin: function (origin, callback) {
 		if (whitelist.indexOf(origin) !== -1) {
