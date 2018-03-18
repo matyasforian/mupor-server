@@ -10,7 +10,8 @@ var upload         = multer({ dest: 'uploads/' });
 var app = express();
 var router = express.Router();
 
-var whitelist = ['http://localhost:4200', 'http://mupor.hopto.org:3000', 'http://mupor.hopto.org:8888'];
+var whitelist = ['http://localhost:4200', 'http://localhost:4200/', 'http://mupor.hopto.org:3000',
+				 'http://mupor.hopto.org:8888', 'http://mupor.hopto.org:8888/'];
 var corsOptions = {
 	origin: function (origin, callback) {
 		if (whitelist.indexOf(origin) !== -1) {
@@ -21,6 +22,11 @@ var corsOptions = {
 	},
 	credentials: true
 };
+
+app.use(function(req, res, next) {
+	req.headers.origin = req.headers.origin || req.headers.referer;
+	next();
+});
 
 app.use(cors(corsOptions));
 var start = 0;
@@ -71,7 +77,7 @@ app.post('/:artist/addFile', upload.single('file'), function (req, res, next) {
         fs.createReadStream(req.file.path).pipe(fs.createWriteStream('images/' + artist + '/raw/' + file));
         deleteFile(req.file.path);
         console.log('File uploaded', req.body.artist, req.file.originalname, new Date() - start);
-        res.status(200).send({result: 'success'});
+        res.status(200).send({result: 'success', link: req.file.originalname});
 	} catch (error) {
     	console.error('Error found while file upload', req.body.artist, req.file.originalname, error);
 		next(error);
