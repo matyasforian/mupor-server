@@ -11,8 +11,8 @@ RUN apt-get install -y build-essential
 
 WORKDIR /opt/mupur-server
 
-ADD . /opt/mupur-server
-RUN mkdir images
+#ADD . /opt/mupur-server
+#RUN mkdir images
 
 RUN npm install
 
