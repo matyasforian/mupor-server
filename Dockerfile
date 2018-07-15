@@ -1,5 +1,6 @@
 # sudo docker build -t mupur-server:latest .
-# sudo docker run -tid -v --name mupor-server -p 3000:3000 mupur-server:latest
+# sudo docker run -tid --name mupor-server -p 3000:3000 mupur-server:latest
+# Index.js override example: sudo docker run -tid -v /kepek:/opt/mupur-server --name mupor-server -p 3000:3000 mupur-server:latest
 FROM ubuntu:latest
 MAINTAINER tozo07@gmail.com
 
