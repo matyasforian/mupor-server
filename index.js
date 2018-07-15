@@ -72,9 +72,12 @@ app.post('/:artist/addFile', upload.single('file'), function (req, res, next) {
 		var start = new Date();
 		var artist = req.params.artist;
 		var file = req.file.originalname;
+        var size = req.body.size || 'raw'; // image needs to have size, or default will be "raw" directory
+
 		console.log('add file', req.file, req.body);
+
 		var dir = checkCreateDirs(artist);
-        fs.createReadStream(req.file.path).pipe(fs.createWriteStream('images/' + artist + '/raw/' + file));
+        fs.createReadStream(req.file.path).pipe(fs.createWriteStream('images/' + artist + '/' + size + '/' + file));
         deleteFile(req.file.path);
         console.log('File uploaded', req.body.artist, req.file.originalname, new Date() - start);
         res.status(200).send({result: 'success', link: req.file.originalname});
@@ -84,7 +87,7 @@ app.post('/:artist/addFile', upload.single('file'), function (req, res, next) {
 	}
 });
 
-app.delete('/delete/:artist/:image', function(req, res) {
+app.delete('/deleteImage/:artist/:image', function(req, res) {
 	try {
 	    var deleted = 0;
 		resolutions.forEach(function(val) {
