@@ -1,17 +1,29 @@
+/**
+ * REQUIRES
+ */
 var express        = require('express');
 var multer         = require('multer');
 var fs             = require('fs');
-var gm             = require('gm');
 var bodyParser     = require('body-parser');
 var methodOverride = require('method-override');
 var cors           = require('cors');
+var elasticsearch  = require('elasticsearch');
 var upload         = multer({ dest: 'uploads/' });
 
 var app = express();
 var router = express.Router();
 
-var whitelist = ['http://localhost:4200', 'http://localhost:4200/', 'http://mupor.hopto.org:3000',
-				 'http://mupor.hopto.org:8888', 'http://mupor.hopto.org:8888/'];
+/**
+ * DEFS
+ */
+var whitelist = [
+		'http://localhost:4200',
+		'http://localhost:4200/',
+		'http://mupor.hopto.org:3000',
+		'http://mupor.hopto.org:8888',
+		'http://mupor.hopto.org:8888/'
+	];
+
 var corsOptions = {
 	origin: function (origin, callback) {
 		if (whitelist.indexOf(origin) !== -1) {
@@ -23,14 +35,6 @@ var corsOptions = {
 	credentials: true
 };
 
-app.use(function(req, res, next) {
-	req.headers.origin = req.headers.origin || req.headers.referer;
-	next();
-});
-
-app.use(cors(corsOptions));
-var start = 0;
-
 var resolutions = [
     {name: 'preview_xxs', height: 375},
     {name: 'preview_xs', height: 768},
@@ -41,32 +45,32 @@ var resolutions = [
     {name: 'raw', height: undefined}
 ];
 
+
+var client = new elasticsearch.Client({
+	host: 'http://35.234.124.26//elasticsearch',
+    log: 'trace',
+    httpAuth: 'user:g98RWffDMGVwGRUK'
+});
+
+/**
+ * USES
+ */
+app.use(function(req, res, next) {
+	req.headers.origin = req.headers.origin || req.headers.referer;
+	next();
+});
+
+app.use(cors(corsOptions));
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json());
+app.use(methodOverride());
+
 makeDir('images');
 makeDir('uploads');
 
-app.get('/test', function(req, res) {
-	console.log('test called');
-	res.json({ message: 'hooray! welcome to our api!' });
-});
-
-app.post('/add', upload.single('image'), function (req, res, next) {
-	try {
-		var start = new Date();
-		console.log('add image', req.file, req.body);
-		processImage(req.file.path, req.file.originalname, req.body.artist).then(function(result) {
-            deleteFile(req.file.path);
-			console.log('Image uploaded: ', req.body.artist, req.file.originalname, new Date() - start);
-            res.status(200).send({result: 'success'});
-		}, function(reason) {
-    	    console.error('Error found while process', req.body.artist, req.file.originalname, error);
-			next(reason);
-		});
-	} catch (error) {
-	    console.error('Error found while image upload', req.body.artist, req.file.originalname, error);
-		next(error);
-	}
-});
-
+/**
+ * ENDPOINTS
+ */
 app.post('/:artist/addFile', upload.single('file'), function (req, res, next) {
 	try {
 		var start = new Date();
@@ -114,24 +118,39 @@ app.delete('/deleteFile/:artist/:file', function(req, res) {
 	}
 });
 
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(bodyParser.json());
-app.use(methodOverride());
+app.post('/search', function (req, res) {
+	var searchObj = {
+		index: 'items'
+	};
 
-app.use(function (err, req, res, next) {
-	console.error('err', err);
-	res.status(500).send({ error: err });
+	if (req.body && req.body.query) {
+		searchObj.q = req.body.query;
+	}
+
+	client.search(searchObj).then(function (result) {
+		res.status(200).send(result.hits.hits);
+	});
 });
 
+/**
+ * LISTEN
+ */
+app.use(function (err, req, res, next) {
+    console.error('err', err);
+    res.status(500).send({ error: err });
+});
 app.use(express.static('images'));
-
 app.use(function(req, res, next) {
-	res.status(404).send("Undefined url");
+    res.status(404).send("Undefined url");
 });
 
 app.listen(3000, function () {
   console.log('MUPOR server listening on port 3000!')
 });
+
+/*
+ * FUNCTIONS
+ */
 
 function deleteFile(filePath) {
    fs.unlink(filePath,function(err){
@@ -160,50 +179,4 @@ function makeDir(dir) {
 	} else {
 		return false;
 	}
-}
-
-function processImage(filePath, file, artist) {
-	if (!artist) {
-		throw 'artist not defined';
-	}
-	return new Promise((resolve, reject) => {
-		checkCreateDirs(artist);
-		gm(filePath)
-			.identify(function (err, features) {
-				if (err) {
-					console.log(filePath)
-					console.log(err)
-					reject(err);
-				}
-
-				// copy raw image to assets folder
-				fs.createReadStream(filePath).pipe(fs.createWriteStream('images/' + artist + '/raw/' + file));
-				var promises = [];
-				for (var i=0; i<resolutions.length-1; i++) {
-					var r = resolutions[i];
-					promises.push(createPreviewImage(filePath, file, r.height, r.name, artist));
-				}
-				Promise.all(promises).then(function(val) {
-					resolve(true);
-				}, function(reason) {
-					reject(reason);
-				});
-			});
-	});
-}
-
-function createPreviewImage(filePath, file, rheight, rname, artist) {
-	return new Promise((resolve, reject) => {
-		gm(filePath)
-			.resize(null, rheight)
-			.quality(95)
-			.autoOrient()
-			.write('images/' + artist + '/' + rname + '/' + file, function (err) {
-				if (err) {
-					reject(err);
-				} else {
-					resolve(true);
-				}
-			});
-	});
 }
