@@ -120,11 +120,23 @@ app.delete('/deleteFile/:artist/:file', function(req, res) {
 
 app.post('/search', function (req, res) {
 	var searchObj = {
-		index: 'items'
+		index: 'items',
+		type: 'item'
 	};
 
-	if (req.body && req.body.query) {
-		searchObj.q = req.body.query;
+	if (req.body) {
+		if (req.body.query) {
+			searchObj.q = req.body.query;
+		}
+		// TODO add body-builder, authorID
+		if (req.body.authorId) {
+			searchObj.routing = req.body.authorId;
+		}
+		if (req.body.sort) {
+			searchObj.body = {
+				sort: [req.body.sort]
+            };
+		}
 	}
 
 	client.search(searchObj).then(function (result) {
