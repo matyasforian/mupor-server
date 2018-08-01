@@ -129,6 +129,7 @@ app.post('/search', function (req, res) {
 
 	if (req.body) {
 		body.query('match', 'authorId', req.body.authorId);
+		body.query('match', 'collectionId', req.body.collectionId);
 		if (req.body.query) {
 			body.query('prefix', 'title', req.body.query);
 		}
