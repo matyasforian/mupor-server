@@ -8,6 +8,7 @@ var bodyParser     = require('body-parser');
 var methodOverride = require('method-override');
 var cors           = require('cors');
 var elasticsearch  = require('elasticsearch');
+var bodybuilder	   = require('bodybuilder');
 var upload         = multer({ dest: 'uploads/' });
 
 var app = express();
@@ -124,23 +125,28 @@ app.post('/search', function (req, res) {
 		type: 'item'
 	};
 
+	var body = bodybuilder();
+
 	if (req.body) {
+		body.query('match', 'authorId', req.body.authorId);
 		if (req.body.query) {
-			searchObj.q = req.body.query;
-		}
-		// TODO add body-builder, authorID
-		if (req.body.authorId) {
-			searchObj.routing = req.body.authorId;
+			body.query('prefix', 'title', req.body.query);
 		}
 		if (req.body.sort) {
-			searchObj.body = {
-				sort: [req.body.sort]
-            };
+			body.sort(req.body.sort.field, req.body.sort.order);
+		}
+		if (req.body.from) {
+			body.from(req.body.from);
+		}
+		if (req.body.size) {
+			body.size(req.body.size);
 		}
 	}
 
+	searchObj.body = body.build();
+
 	client.search(searchObj).then(function (result) {
-		res.status(200).send(result.hits.hits);
+		res.status(200).send(result.hits);
 	});
 });
 
