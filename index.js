@@ -9,6 +9,8 @@ var methodOverride = require('method-override');
 var cors           = require('cors');
 var elasticsearch  = require('elasticsearch');
 var bodybuilder	   = require('bodybuilder');
+var excel		   = require('excel4node');
+var admin		   = require('firebase-admin');
 var upload         = multer({ dest: 'uploads/' });
 
 var app = express();
@@ -36,6 +38,8 @@ var corsOptions = {
 	credentials: true
 };
 
+var firebaseAccount = require('./mupo-49550-905bdbeba906');
+
 var resolutions = [
     {name: 'preview_xxs', height: 375},
     {name: 'preview_xs', height: 768},
@@ -49,9 +53,14 @@ var resolutions = [
 
 var client = new elasticsearch.Client({
 	host: 'http://35.234.124.26//elasticsearch',
-    log: 'trace',
     httpAuth: 'user:g98RWffDMGVwGRUK'
 });
+
+admin.initializeApp({
+	credential: admin.credential.cert(firebaseAccount)
+});
+var db = admin.firestore();
+db.settings({timestampsInSnapshots: true});
 
 /**
  * USES
@@ -148,6 +157,39 @@ app.post('/search', function (req, res) {
 
 	client.search(searchObj).then(function (result) {
 		res.status(200).send(result.hits);
+	});
+});
+
+app.get('/excel/:authorId', function (req, res) {
+	var authorRef = db.collection('authors').doc(req.params.authorId);
+	var wb = new excel.Workbook();
+
+    authorRef.collection('collections').get().then(function (snapshot) {
+    	snapshot.forEach(function (collection) {
+
+            var ws = wb.addWorksheet(collection.data().name, {});
+
+            var columnMap = {};
+            var columnCount = 1;
+
+            columnMap['title'] = 1;
+
+    		authorRef.collection('collections').doc(collection.id).collection('items').get().then(function (items) {
+    			items.forEach(function (itemDoc, index) {
+
+    				var item = itemDoc.data();
+                    item.fields.forEach(function (field) {
+                        console.log('field: ', field);
+                        if (columnMap[field.id] === undefined || columnMap[field.id] === null) {
+                            columnMap[field.id] = ++columnCount;
+                        }
+                        ws.cell(index + 1, columnMap[field.id]).string(item[field]);
+                    });
+
+                });
+                wb.write('export.xlsx', res);
+            });
+		});
 	});
 });
 
