@@ -160,37 +160,132 @@ app.post('/search', function (req, res) {
 	});
 });
 
+var specialFields = {
+	type: {width: 10},
+	shortInformation: {width: 20},
+	information: {width: 25},
+	extraInformation: {width: 25},
+	description: {width: 25}
+};
+
 app.get('/excel/:authorId', function (req, res) {
 	var authorRef = db.collection('authors').doc(req.params.authorId);
 	var wb = new excel.Workbook();
 
+	var headerStyle = wb.createStyle({
+		alignment: {
+            shrinkToFit: true
+		},
+		font: {
+			bold: true
+		}
+	});
+
+	var cellStyle = wb.createStyle({
+		alignment: {
+			wrapText: true
+		}
+	});
+
     authorRef.collection('collections').get().then(function (snapshot) {
-    	snapshot.forEach(function (collection) {
 
-            var ws = wb.addWorksheet(collection.data().name, {});
+    	var promises = snapshot.docs.map(function (collection) {
+    		return new Promise(function (resolve, reject) {
+                var ws = wb.addWorksheet(collection.data().name, {sheetFormat: {defaultRowHeight: 130}});
 
-            var columnMap = {};
-            var columnCount = 1;
+                var columnMap = {};
+                var columnCount = 1;
 
-            columnMap['title'] = 1;
+                console.log('starting worksheet: ', collection.data().name);
+                columnMap['title'] = 1;
+                ws.cell(1, 1).string('title').style(headerStyle);
+                ws.row(1).setHeight(20);
 
-    		authorRef.collection('collections').doc(collection.id).collection('items').get().then(function (items) {
-    			items.forEach(function (itemDoc, index) {
+                authorRef.collection('collections').doc(collection.id).collection('items').get().then(function (items) {
 
-    				var item = itemDoc.data();
-                    item.fields.forEach(function (field) {
-                        console.log('field: ', field);
-                        if (columnMap[field.id] === undefined || columnMap[field.id] === null) {
-                            columnMap[field.id] = ++columnCount;
-                        }
-                        ws.cell(index + 1, columnMap[field.id]).string(item[field]);
+                	// Normal fields
+                	var itemIndex = 2;
+                    items.forEach(function (itemDoc) {
+                        var item = itemDoc.data();
+
+                        item.fields.forEach(function (field) {
+                            if (columnMap[field.id] === undefined || columnMap[field.id] === null) {
+                                columnMap[field.id] = ++columnCount;
+                                console.log('writing header: ', 1, columnMap[field.id], field.id);
+                                ws.cell(1, columnMap[field.id]).string(field.id).style(headerStyle);
+                            }
+                            console.log('writing data:', itemIndex + 1, columnMap[field.id], item[field.id]);
+                            ws.cell(itemIndex, columnMap[field.id]).string(item[field.id] || '').style(cellStyle);
+                        });
+                        itemIndex++;
                     });
 
+                    // Special fields
+                    itemIndex = 2;
+                    Object.keys(specialFields).forEach(function (field) {
+                    	columnMap[field] = ++columnCount;
+                    	ws.cell(1, columnMap[field]).string(field).style(headerStyle);
+                    	ws.column(columnCount).setWidth(specialFields[field].width);
+					});
+
+                    items.forEach(function (itemDoc) {
+                    	var item = itemDoc.data();
+                        Object.keys(specialFields).forEach(function (field) {
+                            ws.cell(itemIndex, columnMap[field]).string(item[field] || '').style(cellStyle);
+						});
+                        itemIndex++;
+                    });
+
+                    // Images
+					itemIndex = 2;
+					items.forEach(function (itemDoc) {
+						var item = itemDoc.data();
+                        var currentCol = columnCount;
+
+                        if (!item.files.images) {
+							item.files.images = [];
+						}
+						item.files.images.unshift(item.files.mainImage);
+
+                        item.files.images.forEach(function (image) {
+                            var fromCol = currentCol + 1;
+                            var toCol = fromCol + 1;
+                            ws.addImage({
+                                path: './images/' + image.authorId + '/preview_xs/' + image.fileName,
+                                type: 'picture',
+                                position: {
+                                    type: 'twoCellAnchor',
+                                    from: {
+                                        col: fromCol,
+                                        colOff: '.5mm',
+                                        row: itemIndex,
+                                        rowOff: '.5mm'
+                                    },
+                                    to: {
+                                        col: toCol,
+                                        colOff: 0,
+                                        row: itemIndex + 1,
+                                        rowOff: 0
+                                    }
+                                }
+                            });
+                            ws.column(fromCol).setWidth(30);
+                            currentCol++;
+						});
+						itemIndex++;
+                    });
+
+                    resolve();
                 });
-                wb.write('export.xlsx', res);
             });
 		});
-	});
+
+    	Promise.all(promises).then(function () {
+            console.log('sending xlsx..');
+            wb.write('export.xlsx', res)
+		});
+
+    });
 });
 
 /**
