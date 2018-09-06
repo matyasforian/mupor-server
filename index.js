@@ -183,7 +183,8 @@ app.get('/excel/:authorId', function (req, res) {
 
 	var cellStyle = wb.createStyle({
 		alignment: {
-			wrapText: true
+			wrapText: true,
+            vertical: 'top'
 		}
 	});
 
@@ -250,8 +251,15 @@ app.get('/excel/:authorId', function (req, res) {
                         item.files.images.forEach(function (image) {
                             var fromCol = currentCol + 1;
                             var toCol = fromCol + 1;
+
+                            var imagePath = './images/' + image.authorId + '/preview_xs/' + image.fileName;
+
+                            if (!fs.existsSync(imagePath)) {
+                            	return;
+							}
+
                             ws.addImage({
-                                path: './images/' + image.authorId + '/preview_xs/' + image.fileName,
+                                path: imagePath,
                                 type: 'picture',
                                 position: {
                                     type: 'twoCellAnchor',
