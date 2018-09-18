@@ -48,6 +48,17 @@ var resolutions = [
     {name: 'raw', height: undefined}
 ];
 
+var directories = [
+	'preview_s',
+	'preview_m',
+	'preview_l',
+	'preview_xl',
+	'raw',
+	'video',
+	'audio',
+	'other'
+];
+
 
 var client = new elasticsearch.Client({
 	host: 'http://35.234.124.26//elasticsearch',
@@ -86,13 +97,13 @@ app.post('/:artist/addFile', upload.single('file'), function (req, res, next) {
 		var file = req.file.originalname;
         var size = req.body.size || 'raw'; // image needs to have size, or default will be "raw" directory
 
-		console.log('add file', req.file, req.body);
+		checkCreatedDirs(artist).then(function () {
+            fs.createReadStream(req.file.path).pipe(fs.createWriteStream('images/' + artist + '/' + size + '/' + file));
+            deleteFile(req.file.path);
 
-		var dir = checkCreateDirs(artist);
-        fs.createReadStream(req.file.path).pipe(fs.createWriteStream('images/' + artist + '/' + size + '/' + file));
-        deleteFile(req.file.path);
-        console.log('File uploaded', req.body.artist, req.file.originalname, new Date() - start);
-        res.status(200).send({result: 'success', link: req.file.originalname});
+            console.log('File uploaded: ', artist, file, new Date() - start);
+            res.status(200).send({result: 'success', link: req.file.originalname});
+		});
 	} catch (error) {
     	console.error('Error found while file upload', req.body.artist, req.file.originalname, error);
 		next(error);
@@ -138,7 +149,7 @@ app.post('/search', function (req, res) {
 		body.query('match', 'authorId', req.body.authorId);
 		body.query('match', 'collectionId', req.body.collectionId);
 		if (req.body.query) {
-			body.query('prefix', 'title', req.body.query);
+			body.query('match_phrase_prefix', 'title', req.body.query);
 		}
 		if (req.body.sort) {
 			body.sort(req.body.sort.field, req.body.sort.order);
@@ -323,15 +334,16 @@ function deleteFile(filePath) {
    });
 }
 
-function checkCreateDirs(artist) {
-	var dir = 'images/' + artist;
-	if (makeDir(dir)) {
-		resolutions.forEach(function(val) {
-			var dir = 'images/' + artist + '/' + val.name;
-			makeDir(dir);
-		});
-	}
-	return dir;
+function checkCreatedDirs(artist) {
+	return new Promise(function(resolve, reject) {
+        var dir = 'images/' + artist;
+        makeDir(dir);
+        directories.forEach(function (directoryName) {
+            var dir = 'images/' + artist + '/' + directoryName;
+            makeDir(dir);
+        });
+        resolve();
+    });
 }
 
 function makeDir(dir) {
