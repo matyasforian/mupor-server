@@ -58,7 +58,7 @@ var directories = [
 	'audio',
 	'other'
 ];
-
+var INFO_FIELDS = ['shortInformation', 'information', 'extraInformation', 'description'];
 
 var client = new elasticsearch.Client({
 	host: 'http://35.234.124.26//elasticsearch',
@@ -149,7 +149,25 @@ app.post('/search', function (req, res) {
 		body.query('match', 'authorId', req.body.authorId);
 		body.query('match', 'collectionId', req.body.collectionId);
 		if (req.body.query) {
-			body.query('match_phrase_prefix', 'title', req.body.query);
+			if (req.body.type === 'title') {
+				body.query('match_phrase_prefix', 'title', req.body.query);
+			} else {
+				body.query('dis_max', {
+					tie_breaker: 0.7,
+					boost: 1.2,
+					queries: [
+						{multi_match: {
+							query: req.body.query,
+							type: 'phrase_prefix',
+							fields: ['title^3', 'FIELD_*']
+						}},
+						{multi_match: {
+							query: req.body.query,
+							fields: INFO_FIELDS
+						}}
+					]
+				});
+			}
 		}
 		if (req.body.sort) {
 			body.sort(req.body.sort.field, req.body.sort.order);
