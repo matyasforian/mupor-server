@@ -279,8 +279,7 @@ app.get('/excel/:authorId', function (req, res) {
                             var fromCol = currentCol + 1;
                             var toCol = fromCol + 1;
 
-                            var imagePath = './images/' + image.authorId + '/preview_xs/' + image.fileName;
-
+                            var imagePath = './images/' + image.authorId + '/preview_s/' + image.fileName;
                             if (!fs.existsSync(imagePath)) {
                             	return;
 							}
