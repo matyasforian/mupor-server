@@ -12,6 +12,7 @@ var bodybuilder	   = require('bodybuilder');
 var excel		   = require('excel4node');
 var admin		   = require('firebase-admin');
 var upload         = multer({ dest: 'uploads/' });
+var sizeOf		   = require('image-size');
 
 var app = express();
 var router = express.Router();
@@ -227,7 +228,7 @@ app.get('/excel/:authorId', function (req, res) {
                 console.log('starting worksheet: ', collection.data().name);
                 columnMap['title'] = 1;
                 ws.cell(1, 1).string('title').style(headerStyle);
-                ws.row(1).setHeight(20);
+                ws.row(1).setHeight(30);
 
                 authorRef.collection('collections').doc(collection.id).collection('items').get().then(function (items) {
 
@@ -266,6 +267,11 @@ app.get('/excel/:authorId', function (req, res) {
 
                     // Images
 					itemIndex = 2;
+
+					var maxWidthCm = 7.47;
+					var maxHeightCm = 4.54;
+					var originalProportions = maxWidthCm / maxHeightCm;
+
 					items.forEach(function (itemDoc) {
 						var item = itemDoc.data();
                         var currentCol = columnCount;
@@ -284,26 +290,32 @@ app.get('/excel/:authorId', function (req, res) {
                             	return;
 							}
 
+                            var dimensions = sizeOf(imagePath);
+                            var proportions = dimensions.width / dimensions.height;
+
+                            var proportionScale = originalProportions / proportions;
+                            var colOff = 1 + (1 / proportionScale) * maxWidthCm;
+
                             ws.addImage({
                                 path: imagePath,
                                 type: 'picture',
                                 position: {
                                     type: 'twoCellAnchor',
-                                    from: {
-                                        col: fromCol,
-                                        colOff: '.5mm',
-                                        row: itemIndex,
-                                        rowOff: '.5mm'
-                                    },
-                                    to: {
-                                        col: toCol,
-                                        colOff: 0,
-                                        row: itemIndex + 1,
-                                        rowOff: 0
-                                    }
+									from: {
+										col: fromCol,
+										colOff: '1cm',
+										row: itemIndex,
+										rowOff: '0cm'
+									},
+									to: {
+										col: fromCol,
+										colOff: colOff + 'cm',
+										row: itemIndex,
+										rowOff: maxHeightCm + 'cm'
+									}
                                 }
                             });
-                            ws.column(fromCol).setWidth(30);
+                            ws.column(fromCol).setWidth(40);
                             currentCol++;
 						});
 						itemIndex++;
