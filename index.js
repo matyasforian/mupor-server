@@ -171,7 +171,11 @@ app.post('/search', function (req, res) {
 				body.rawOption('highlight', {
 					fields: {
 						'title': {},
-						'FIELD_*': {}
+						'FIELD_*': {},
+						'information': {},
+						'extraInformation': {},
+						'shortInformation': {},
+						'description': {}
 					}
 				})
 			}
