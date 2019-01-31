@@ -168,6 +168,12 @@ app.post('/search', function (req, res) {
 						}}
 					]
 				});
+				body.rawOption('highlight', {
+					fields: {
+						'title': {},
+						'FIELD_*': {}
+					}
+				})
 			}
 		}
 		if (req.body.sort) {
