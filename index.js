@@ -164,11 +164,16 @@ app.post('/search', function (req, res) {
 						}},
 						{multi_match: {
 							query: req.body.query,
+							type: 'phrase_prefix',
 							fields: INFO_FIELDS
 						}}
 					]
 				});
+
 				body.rawOption('highlight', {
+					fragment_size: 40,
+					pre_tags: ['<mark>'],
+					post_tags: ['</mark>'],
 					fields: {
 						'title': {},
 						'FIELD_*': {},
