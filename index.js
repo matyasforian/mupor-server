@@ -194,6 +194,11 @@ app.post('/search', function (req, res) {
 		if (req.body.size) {
 			body.size(req.body.size);
 		}
+		if (req.body.specialSiteIncluded) {
+			body.query('match', 'isSpecialSite', true);
+		} else {
+			body.notQuery('match', 'isSpecialSite', true);
+		}
 	}
 
 	searchObj.body = body.build();
