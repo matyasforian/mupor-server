@@ -44,9 +44,7 @@ var firebaseAccount = require('./mupo-49550-905bdbeba906');
 var resolutions = [
     {name: 'preview_s', height: 375},
     {name: 'preview_m', height: 768},
-    {name: 'preview_l', height: 1080},
-    {name: 'preview_xl', height: 2880},
-    {name: 'raw', height: undefined}
+    {name: 'preview_l', height: 1080}
 ];
 
 var directories = [
@@ -57,6 +55,7 @@ var directories = [
 	'raw',
 	'video',
 	'audio',
+	'pdf',
 	'other'
 ];
 var INFO_FIELDS = ['shortInformation', 'information', 'extraInformation', 'description'];
@@ -99,6 +98,7 @@ app.post('/:artist/addFile', upload.single('file'), function (req, res, next) {
         var size = req.body.size || 'raw'; // image needs to have size, or default will be "raw" directory
 
 		checkCreatedDirs(artist).then(function () {
+			console.log('try to upload file', 'images/' + artist + '/' + size + '/' + file);
             fs.createReadStream(req.file.path).pipe(fs.createWriteStream('images/' + artist + '/' + size + '/' + file));
             deleteFile(req.file.path);
 
@@ -127,13 +127,13 @@ app.delete('/deleteImage/:artist/:image', function(req, res) {
 	}
 });
 
-app.delete('/deleteFile/:artist/:file', function(req, res) {
+app.delete('/deleteFile/:artist/:type/:file', function(req, res) {
 	try {
-        deleteFile('images/' + req.params.artist + '/raw/' + req.params.file);
-        console.log('File deleted', req.params.artist, req.params.file);
+        deleteFile('images/' + req.params.artist + '/' + req.params.type + '/' + req.params.file);
+        console.log('File deleted', req.params.artist, req.params.type, req.params.file);
         res.status(200).send({result: 'success'});
 	} catch (error) {
-    	console.error('Error found while delete file', req.params.artist, req.params.file, error);
+    	console.error('Error found while delete file', req.params.artist, req.params.type, req.params.file, error);
 		next(error);
 	}
 });
