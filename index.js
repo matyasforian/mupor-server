@@ -95,16 +95,23 @@ app.post('/:artist/addFile', upload.single('file'), function (req, res, next) {
 		var start = new Date();
 		var artist = req.params.artist;
 		var file = req.file.originalname;
-        var size = req.body.size || 'raw'; // image needs to have size, or default will be "raw" directory
+		var size = req.body.size || 'raw'; // image needs to have size, or default will be "raw" directory
+		var filePath = 'images/' + artist + '/' + size + '/' + file;
 
-		checkCreatedDirs(artist).then(function () {
-			console.log('try to upload file', 'images/' + artist + '/' + size + '/' + file);
-            fs.createReadStream(req.file.path).pipe(fs.createWriteStream('images/' + artist + '/' + size + '/' + file));
-            deleteFile(req.file.path);
+		/* Throws error in case file exists with that filename */
+		if (fs.existsSync(filePath)) {
+			console.error('Error found while file upload', req.body.artist, req.file.originalname, new Error('File already exists with that name.'));
+			next('FILE_ALREADY_EXISTS');
+		} else {
+			checkCreatedDirs(artist).then(function () {
+				console.log('try to upload file', filePath);
+				fs.createReadStream(req.file.path).pipe(fs.createWriteStream(filePath));
+				deleteFile(req.file.path);
 
-            console.log('File uploaded: ', artist, file, new Date() - start);
-            res.status(200).send({result: 'success', link: req.file.originalname});
-		});
+				console.log('File uploaded: ', artist, file, new Date() - start);
+				res.status(200).send({result: 'success', link: req.file.originalname});
+			});
+		}
 	} catch (error) {
     	console.error('Error found while file upload', req.body.artist, req.file.originalname, error);
 		next(error);
@@ -397,7 +404,7 @@ function checkCreatedDirs(artist) {
 
 function makeDir(dir) {
 	if (!fs.existsSync(dir)) {
-		fs.mkdirSync(dir, 0744);
+		fs.mkdirSync(dir, 0o744);
 		return true;
 	} else {
 		return false;
